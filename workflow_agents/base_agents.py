@@ -286,36 +286,40 @@ class EvaluationAgent:
         }
 
 
-'''
+
 class RoutingAgent():
 
     def __init__(self, openai_api_key, agents):
         # Initialize the agent with given attributes
         self.openai_api_key = openai_api_key
-        # TODO: 1 - Define an attribute to hold the agents, call it agents
+        self.agents = agents
 
     def get_embedding(self, text):
         client = OpenAI(api_key=self.openai_api_key)
-        # TODO: 2 - Write code to calculate the embedding of the text using the text-embedding-3-large model
+        response = client.embeddings.create(
+            model="text-embedding-3-small",
+            input=text
+        )
         # Extract and return the embedding vector from the response
         embedding = response.data[0].embedding
         return embedding 
 
-    # TODO: 3 - Define a method to route user prompts to the appropriate agent
-        # TODO: 4 - Compute the embedding of the user input prompt
-        input_emb = 
+    def route_prompt(self, user_input):
+        input_emb = self.get_embedding(user_input)
         best_agent = None
         best_score = -1
 
         for agent in self.agents:
-            # TODO: 5 - Compute the embedding of the agent description
+            agent_emb = self.get_embedding(agent["description"])
             if agent_emb is None:
                 continue
 
             similarity = np.dot(input_emb, agent_emb) / (np.linalg.norm(input_emb) * np.linalg.norm(agent_emb))
             print(similarity)
 
-            # TODO: 6 - Add logic to select the best agent based on the similarity score between the user prompt and the agent descriptions
+            if similarity > best_score:
+                best_score = similarity
+                best_agent = agent
 
         if best_agent is None:
             return "Sorry, no suitable agent could be selected."
@@ -323,25 +327,100 @@ class RoutingAgent():
         print(f"[Router] Best agent: {best_agent['name']} (score={best_score:.3f})")
         return best_agent["func"](user_input)
 
-'''
 
-'''
+
+
 class ActionPlanningAgent:
 
     def __init__(self, openai_api_key, knowledge):
-        # TODO: 1 - Initialize the agent attributes here
+        self.openai_api_key = openai_api_key
+        self.knowledge = knowledge
 
     def extract_steps_from_prompt(self, prompt):
 
-        # TODO: 2 - Instantiate the OpenAI client using the provided API key
-        # TODO: 3 - Call the OpenAI API to get a response from the "gpt-3.5-turbo" model.
-        # Provide the following system prompt along with the user's prompt:
-        # "You are an action planning agent. Using your knowledge, you extract from the user prompt the steps requested to complete the action the user is asking for. You return the steps as a list. Only return the steps in your knowledge. Forget any previous context. This is your knowledge: {pass the knowledge here}"
+        client = OpenAI(api_key=self.openai_api_key)
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": f"You are an action planning agent. Using your knowledge, you extract from the user prompt the steps requested to complete the action the user is asking for. You return the steps as a list. Only return the steps in your knowledge. Forget any previous context. This is your knowledge: {self.knowledge}"},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0
+        )
 
-        response_text = ""  # TODO: 4 - Extract the response text from the OpenAI API response
+        response_text = response.choices[0].message.content.strip()
 
-        # TODO: 5 - Clean and format the extracted steps by removing empty lines and unwanted text
-        steps = response_text.split("\n")
+        steps = self._clean_and_format_steps(response_text)
 
         return steps
-'''
+
+    def _clean_and_format_steps(self, response_text):
+        """
+        Clean and format the extracted steps by removing empty lines and unwanted text.
+        
+        Args:
+            response_text (str): Raw response text from the API
+            
+        Returns:
+            list: Cleaned and formatted list of steps
+        """
+        # Split the response into lines
+        lines = response_text.split('\n')
+        
+        cleaned_steps = []
+        
+        for line in lines:
+            # Strip whitespace
+            cleaned_line = line.strip()
+            
+            # Skip empty lines
+            if not cleaned_line:
+                continue
+                
+            # Remove common unwanted prefixes and formatting
+            # Remove bullet points, numbers, and common list markers
+            cleaned_line = re.sub(r'^[-*•]\s*', '', cleaned_line)  # Remove bullet points
+            cleaned_line = re.sub(r'^\d+\.\s*', '', cleaned_line)  # Remove numbered lists
+            cleaned_line = re.sub(r'^[ivxlcdm]+\.\s*', '', cleaned_line, flags=re.IGNORECASE)  # Remove roman numerals
+            cleaned_line = re.sub(r'^[a-zA-Z]\.\s*', '', cleaned_line)  # Remove letter lists (a., b., etc.)
+            
+            # Remove extra whitespace and normalize
+            cleaned_line = re.sub(r'\s+', ' ', cleaned_line).strip()
+            
+            # Skip lines that are too short or contain only punctuation
+            if len(cleaned_line) < 3 or cleaned_line.replace('.', '').replace(',', '').replace(':', '').strip() == '':
+                continue
+                
+            # Skip common unwanted phrases
+            unwanted_phrases = [
+                'here are the steps',
+                'the steps are',
+                'steps to complete',
+                'action steps',
+                'based on the knowledge',
+                'from the knowledge base'
+            ]
+            
+            if any(unwanted.lower() in cleaned_line.lower() for unwanted in unwanted_phrases):
+                continue
+                
+            # Ensure the step starts with a capital letter
+            if cleaned_line and cleaned_line[0].islower():
+                cleaned_line = cleaned_line[0].upper() + cleaned_line[1:]
+                
+            # Ensure the step ends with appropriate punctuation if it doesn't already
+            if cleaned_line and not cleaned_line.endswith(('.', '!', '?', ':')):
+                cleaned_line += '.'
+                
+            cleaned_steps.append(cleaned_line)
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_steps = []
+        for step in cleaned_steps:
+            step_lower = step.lower()
+            if step_lower not in seen:
+                seen.add(step_lower)
+                unique_steps.append(step)
+        
+        return unique_steps
