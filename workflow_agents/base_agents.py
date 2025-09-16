@@ -255,7 +255,7 @@ class EvaluationAgent:
 
             print(" Step 3: Check if evaluation is positive")
             if evaluation.lower().startswith("yes"):
-                print("✅ Final solution accepted.")
+                print("[SUCCESS] Final solution accepted.")
                 break
             else:
                 print(" Step 4: Generate instructions to correct the response")
@@ -327,6 +327,31 @@ class RoutingAgent():
         print(f"[Router] Best agent: {best_agent['name']} (score={best_score:.3f})")
         return best_agent["func"](user_input)
 
+    def route(self, user_input):
+        """Route user input to the best agent and return the agent function."""
+        input_emb = self.get_embedding(user_input)
+        best_agent = None
+        best_score = -1
+
+        for agent in self.agents:
+            agent_emb = self.get_embedding(agent["description"])
+            if agent_emb is None:
+                continue
+
+            similarity = np.dot(input_emb, agent_emb) / (np.linalg.norm(input_emb) * np.linalg.norm(agent_emb))
+            print(similarity)
+
+            if similarity > best_score:
+                best_score = similarity
+                best_agent = agent
+
+        if best_agent is None:
+            # Return a lambda that returns an error message
+            return lambda x: "Sorry, no suitable agent could be selected."
+
+        print(f"[Router] Best agent: {best_agent['name']} (score={best_score:.3f})")
+        return best_agent["func"]
+
 
 
 
@@ -379,7 +404,7 @@ class ActionPlanningAgent:
                 
             # Remove common unwanted prefixes and formatting
             # Remove bullet points, numbers, and common list markers
-            cleaned_line = re.sub(r'^[-*•]\s*', '', cleaned_line)  # Remove bullet points
+            cleaned_line = re.sub(r'^[-*]\s*', '', cleaned_line)  # Remove bullet points
             cleaned_line = re.sub(r'^\d+\.\s*', '', cleaned_line)  # Remove numbered lists
             cleaned_line = re.sub(r'^[ivxlcdm]+\.\s*', '', cleaned_line, flags=re.IGNORECASE)  # Remove roman numerals
             cleaned_line = re.sub(r'^[a-zA-Z]\.\s*', '', cleaned_line)  # Remove letter lists (a., b., etc.)
