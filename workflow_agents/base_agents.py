@@ -19,7 +19,7 @@ class DirectPromptAgent:
         # Generate a response using the OpenAI API
         client = OpenAI(api_key=self.openai_api_key)
         response = client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "user", "content": prompt}
             ],
@@ -41,7 +41,7 @@ class AugmentedPromptAgent:
         client = OpenAI(api_key=self.openai_api_key)
 
         response = client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": f"You are {self.persona}. Forget all previous context."},
                 {"role": "user", "content": input_text}
@@ -65,7 +65,7 @@ class KnowledgeAugmentedPromptAgent:
         """Generate a response using the OpenAI API."""
         client = OpenAI(api_key=self.openai_api_key)
         response = client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": f"You are {self.persona}, a knowledge-based assistant. Forget all previous context. Use only the following knowledge to answer, do not use your own knowledge: {self.knowledge}. Answer the prompt based on this knowledge, not your own."},
                 {"role": "user", "content": input_text}
@@ -110,7 +110,7 @@ class RAGKnowledgePromptAgent:
         """
         client = OpenAI(api_key=self.openai_api_key)
         response = client.embeddings.create(
-            model="text-embedding-3-small",
+            model="text-embedding-3-large",
             input=text,
             encoding_format="float"
         )
@@ -203,7 +203,7 @@ class RAGKnowledgePromptAgent:
 
         client = OpenAI(api_key=self.openai_api_key)
         response = client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": f"You are {self.persona}, a knowledge-based assistant. Forget previous context."},
                 {"role": "user", "content": f"Answer based only on this information: {best_chunk}. Prompt: {prompt}"}
@@ -244,7 +244,7 @@ class EvaluationAgent:
                 f"Respond Yes or No, and the reason why it does or doesn't meet the criteria."
             )
             response = client.chat.completions.create(
-                model="gpt-4.1-mini",
+                model="gpt-3.5-turbo",
                 messages=[
                     {"role": "user", "content": eval_prompt}
                 ],
@@ -263,7 +263,7 @@ class EvaluationAgent:
                     f"Provide instructions to fix an answer based on these reasons why it is incorrect: {evaluation}"
                 )
                 response = client.chat.completions.create(
-                    model="gpt-4.1-mini",
+                    model="gpt-3.5-turbo",
                     messages=[
                         {"role": "user", "content": instruction_prompt}
                     ],
@@ -297,7 +297,7 @@ class RoutingAgent():
     def get_embedding(self, text):
         client = OpenAI(api_key=self.openai_api_key)
         response = client.embeddings.create(
-            model="text-embedding-3-small",
+            model="text-embedding-3-large",
             input=text
         )
         # Extract and return the embedding vector from the response
@@ -365,7 +365,7 @@ class ActionPlanningAgent:
 
         client = OpenAI(api_key=self.openai_api_key)
         response = client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": f"You are an action planning agent. Using your knowledge, you extract from the user prompt the steps requested to complete the action the user is asking for. You return the steps as a list. Only return the steps in your knowledge. Forget any previous context. This is your knowledge: {self.knowledge}"},
                 {"role": "user", "content": prompt}
